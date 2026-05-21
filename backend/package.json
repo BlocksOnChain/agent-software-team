@@ -2,14 +2,19 @@
   "name": "backend",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "bun test --timeout 600000 src/modules/agents/tests/",
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@langchain/openai": "^1.4.6",
+    "elysia": "latest",
+    "langchain": "^1.4.1"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "@langchain/core": "^1.1.47",
+    "bun-types": "latest",
+    "deepagents": "^1.10.2",
+    "langsmith": "^0.7.1"
   },
   "module": "src/index.js"
 }
