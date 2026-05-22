@@ -1,6 +1,9 @@
 import { execSync } from "child_process";
 import { GenericContainer, Wait } from "testcontainers";
 
+export const TEST_CONTAINER_LABEL = "com.agent-software-team.test";
+export const TEST_CONTAINER_VALUE = "postgres";
+
 const command = process.argv[2];
 
 async function start() {
@@ -11,6 +14,7 @@ async function start() {
             POSTGRES_PASSWORD: "test_password",
         })
         .withExposedPorts(5432)
+        .withLabels({ [TEST_CONTAINER_LABEL]: TEST_CONTAINER_VALUE })
         .withWaitStrategy(
             Wait.forLogMessage(/database system is ready to accept connections/, 2),
         )
@@ -38,11 +42,25 @@ async function stop() {
     execSync(`docker rm -f ${containerId}`, { stdio: "inherit" });
 }
 
-const commands = { start, stop };
+async function cleanup() {
+    const ids = execSync(
+        `docker ps -aq --filter label=${TEST_CONTAINER_LABEL}=${TEST_CONTAINER_VALUE}`,
+        { encoding: "utf-8" },
+    )
+        .trim()
+        .split("\n")
+        .filter(Boolean);
+
+    for (const id of ids) {
+        execSync(`docker rm -f ${id}`, { stdio: "inherit" });
+    }
+}
+
+const commands = { start, stop, cleanup };
 const handler = commands[command];
 
 if (!handler) {
-    console.error("Usage: node testContainer.mjs <start|stop> [containerId]");
+    console.error("Usage: node testContainer.mjs <start|stop|cleanup> [containerId]");
     process.exit(1);
 }
 
