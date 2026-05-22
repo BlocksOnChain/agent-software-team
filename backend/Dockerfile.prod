@@ -1,0 +1,39 @@
+# Production Dockerfile with Prisma Migrations Support
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+
+FROM base AS builder
+COPY . .
+RUN bun run db:generate
+
+FROM oven/bun:1-slim AS production
+WORKDIR /app
+
+# Install Prisma for migrations
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/bun.lockb ./bun.lockb
+COPY --from=builder /app/package.json ./package.json
+
+# Create non-root user
+RUN addgroup --system bunuser && \
+    adduser --system --gid bunuser bunuser && \
+    chown -R bunuser:bunuser /app
+USER bunuser
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+CMD ["node", "src/index.js"]

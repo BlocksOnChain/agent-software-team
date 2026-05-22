@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+generator prismabox {
+  provider = "prismabox"
+  typeboxImportDependencyName = "elysia"
+  typeboxImportVariableName = "t"
+  inputModel = true
+  output   = "../generated/prismabox"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Connection string configured in prisma.config.ts via process.env.DATABASE_URL
+}
+
+enum AgentRole {
+  PROJECT_MANAGER @map("project_manager")
+  RESEARCHER @map("researcher")
+  BACKEND_LEAD @map("backend_lead")
+  FRONTEND_LEAD @map("frontend_lead")
+  BACKEND_DEV @map("backend_dev")
+  FRONTEND_DEV @map("frontend_dev")
+  DEVOPS
+  QA
+}
+
+model Project {
+  id        String @id @default(uuid())
+  name String
+  description String
+
+  board KanbanBoard? @relation("BoardProject")
+}
+
+model KanbanBoard {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  project     Project @relation("BoardProject", fields: [projectId], references: [id])
+  projectId   String @unique
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tickets     Ticket[]
+
+  @@map("kanban_boards")
+}
+
+model Ticket {
+  id                    Int      @id @default(autoincrement())
+  title                 String
+  description           String?
+  technicalRequirements String
+  status                String             @default("todo") // todo, in_progress, testing, done
+  priority              String             @default("medium") // low, medium, high, critical
+  boardId               String
+  board                 KanbanBoard        @relation(fields: [boardId], references: [id])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  subtickets      SubTicket[]
+
+  @@map("tickets")
+}
+
+model SubTicket {
+  id                Int      @id @default(autoincrement())
+  title             String
+  description       String?
+  status            String             @default("todo") // todo, in_progress, testing, done
+  priority          String             @default("medium") // low, medium, high, critical
+  ticketId          Int
+  ticket            Ticket             @relation(fields: [ticketId], references: [id])
+  agentRole         AgentRole?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  testCases         TestCase[]
+
+  @@map("subtickets")
+}
+
+model TestCase {
+  id                Int      @id @default(autoincrement())
+  subTicketId       Int
+  subTicket         SubTicket             @relation(fields: [subTicketId], references: [id])
+
+  // RITE Test Case Fields (Requirements, Input, Expected Result, Steps) - TDD focused
+  requirements      String?           /// Business requirement being tested
+  precondition      String?           /// Setup/prerequisites before test execution
+  input             Json?             /// Test input data (structured for automation)
+  steps             Json?             /// Execution steps [{step: string, action: "click|type|verify"...}]
+  expectedResult    String            /// Expected behavior/outcome description
+  expectedOutput    Json?             /// Expected structured response/data
+
+  acceptanceCriteria Json[]           @default([])  /// Array of conditions that must pass
+  negativeCases     Json?             /// Negative test scenarios [{description: string, input: Json}]
+
+  isRequired        Boolean           @default(false)
+  priority          String            @default("medium")  // low, medium, high, critical
+  automationReady   Boolean           @default(true)      // Default true for TDD approach
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@map("test_cases")
+}

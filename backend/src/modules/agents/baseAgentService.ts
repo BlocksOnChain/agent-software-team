@@ -38,6 +38,17 @@ export class BaseAgentService {
         }
 
         const agent = createDeepAgent({ systemPrompt: prompt });
-        return agent.invoke({ messages: [{ role: "user", content: project_request }] });
+        const result = await agent.invoke({ messages: [{ role: "user", content: project_request }] });
+
+        // Common shapes: sometimes it's a string, sometimes an object with output/content
+        if (typeof result === "string") return result;
+        if (result && Array.isArray((result as any).output) && (result as any).output.length) {
+            const first = (result as any).output[0];
+            if (typeof first.content === "string") return first.content;
+        }
+        if (result && typeof (result as any).content === "string") return (result as any).content;
+
+        // Fallback: return a deterministic serialized representation
+        return JSON.stringify(result);
     }
 }
