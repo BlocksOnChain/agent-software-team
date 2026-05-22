@@ -1,5 +1,6 @@
 import { AgentRole, Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
+import { Context } from "../../context";
 
 export interface Ticket {
     id: number;
@@ -110,11 +111,13 @@ export interface ListTestCasesOptions {
 }
 
 export class KanbanTodoListService {
+    constructor(private ctx: Context) {}
+
     /**
      * Create a new ticket (without subtickets)
      */
     async createTicket(data: CreateTicketInput): Promise<Ticket> {
-        return prisma.$transaction(async (tx) => {
+        return this.ctx.prisma.$transaction(async (tx) => {
             return tx.ticket.create({
                 data: {
                     title: data.title,
@@ -132,7 +135,7 @@ export class KanbanTodoListService {
      * Get a ticket by ID with all subtickets and their test cases
      */
     async getTicketById(ticketId: number): Promise<TicketWithSubTickets | null> {
-        return prisma.ticket.findUnique({
+        return this.ctx.prisma.ticket.findUnique({
             where: { id: ticketId },
             include: {
                 subtickets: {
@@ -158,7 +161,7 @@ export class KanbanTodoListService {
         if (status) where.status = status;
         if (priority) where.priority = priority;
 
-        return prisma.ticket.findMany({
+        return this.ctx.prisma.ticket.findMany({
             where,
             orderBy: { [sortBy]: sortOrder },
             include: {
@@ -171,7 +174,7 @@ export class KanbanTodoListService {
      * Get all subtickets for a ticket with their test cases
      */
     async getSubticketsByTicketId(ticketId: number): Promise<SubTicketWithTestCases[] | null> {
-        const result = await prisma.subTicket.findMany({
+        const result = await this.ctx.prisma.subTicket.findMany({
             where: { ticketId },
             include: {
                 testCases: {
@@ -188,7 +191,7 @@ export class KanbanTodoListService {
      * Get a single subticket with all its test cases
      */
     async getSubticketById(subTicketId: number): Promise<SubTicketWithTestCases | null> {
-        const result = await prisma.subTicket.findFirst({
+        const result = await this.ctx.prisma.subTicket.findFirst({
             where: { id: subTicketId },
             include: {
                 testCases: {
@@ -204,7 +207,7 @@ export class KanbanTodoListService {
      * Create a single subticket
      */
     async createSubticket(data: CreateSubTicketInput): Promise<SubTicket> {
-        return prisma.$transaction(async (tx) => {
+        return this.ctx.prisma.$transaction(async (tx) => {
             return tx.subTicket.create({
                 data: {
                     title: data.title,
@@ -222,7 +225,7 @@ export class KanbanTodoListService {
      * Create multiple subtickets at once
      */
     async createSubtickets(data: CreateSubTicketInput[]): Promise<SubTicket[]> {
-        return prisma.$transaction(async (tx) => {
+        return this.ctx.prisma.$transaction(async (tx) => {
             const results = await Promise.all(
                 data.map((item) =>
                     tx.subTicket.create({
@@ -252,7 +255,7 @@ export class KanbanTodoListService {
         if (priority) where.priority = priority;
         if (agentRole) where.agentRole = agentRole;
 
-        return prisma.subTicket.findMany({
+        return this.ctx.prisma.subTicket.findMany({
             where,
             orderBy: { [sortBy]: sortOrder },
             include: {
@@ -273,7 +276,7 @@ export class KanbanTodoListService {
         if (isRequired !== undefined) where.isRequired = isRequired;
         if (priority) where.priority = priority;
 
-        return prisma.testCase.findMany({
+        return this.ctx.prisma.testCase.findMany({
             where,
             orderBy: { [sortBy]: sortOrder },
         });
@@ -283,7 +286,7 @@ export class KanbanTodoListService {
      * Create a single test case
      */
     async createTestCase(data: CreateTestCaseInput): Promise<TestCase> {
-        return prisma.$transaction(async (tx) => {
+        return this.ctx.prisma.$transaction(async (tx) => {
             return tx.testCase.create({
                 data: {
                     subTicketId: data.subTicketId,
@@ -307,7 +310,7 @@ export class KanbanTodoListService {
      * Create multiple test cases at once
      */
     async createTestCases(data: CreateTestCaseInput[]): Promise<TestCase[]> {
-        return prisma.$transaction(async (tx) => {
+        return this.ctx.prisma.$transaction(async (tx) => {
             const results = await Promise.all(
                 data.map((item) =>
                     tx.testCase.create({
@@ -336,7 +339,7 @@ export class KanbanTodoListService {
      * Update a ticket
      */
     async updateTicket(ticketId: number, data: Partial<CreateTicketInput>): Promise<Ticket | null> {
-        return prisma.ticket.update({
+        return this.ctx.prisma.ticket.update({
             where: { id: ticketId },
             data,
         });
@@ -346,7 +349,7 @@ export class KanbanTodoListService {
      * Delete a ticket (cascades to subtickets and test cases)
      */
     async deleteTicket(ticketId: number): Promise<void> {
-        await prisma.ticket.delete({
+        await this.ctx.prisma.ticket.delete({
             where: { id: ticketId },
         });
     }
@@ -355,7 +358,7 @@ export class KanbanTodoListService {
      * Update a subticket
      */
     async updateSubticket(subTicketId: number, data: Partial<CreateSubTicketInput>): Promise<SubTicket | null> {
-        return prisma.subTicket.update({
+        return this.ctx.prisma.subTicket.update({
             where: { id: subTicketId },
             data,
         });
@@ -365,7 +368,7 @@ export class KanbanTodoListService {
      * Delete a subticket (cascades to test cases)
      */
     async deleteSubticket(subTicketId: number): Promise<void> {
-        await prisma.subTicket.delete({
+        await this.ctx.prisma.subTicket.delete({
             where: { id: subTicketId },
         });
     }
@@ -374,7 +377,7 @@ export class KanbanTodoListService {
      * Update a test case
      */
     async updateTestCase(testCaseId: number, data: Partial<CreateTestCaseInput>): Promise<TestCase | null> {
-        return prisma.testCase.update({
+        return this.ctx.prisma.testCase.update({
             where: { id: testCaseId },
             data: {
                 requirements: data.requirements,
@@ -396,7 +399,7 @@ export class KanbanTodoListService {
      * Delete a test case
      */
     async deleteTestCase(testCaseId: number): Promise<void> {
-        await prisma.testCase.delete({
+        await this.ctx.prisma.testCase.delete({
             where: { id: testCaseId },
         });
     }
@@ -405,7 +408,7 @@ export class KanbanTodoListService {
      * Get tickets by agent role (subticket level) - useful for tracking workload
      */
     async getTicketsByAgentRole(agentRole: AgentRole): Promise<TicketWithSubTickets[]> {
-        return prisma.ticket.findMany({
+        return this.ctx.prisma.ticket.findMany({
             where: {
                 subtickets: {
                     some: {
@@ -430,7 +433,7 @@ export class KanbanTodoListService {
      * Get subtickets filtered by agent role with their test cases
      */
     async getSubticketsByAgentRole(agentRole: AgentRole): Promise<SubTicketWithTestCases[]> {
-        return prisma.subTicket.findMany({
+        return this.ctx.prisma.subTicket.findMany({
             where: { agentRole },
             include: {
                 testCases: true,
@@ -445,7 +448,7 @@ export class KanbanTodoListService {
     async getTicketsByPriority(boardId?: string): Promise<Ticket[]> {
         const boardWhere = boardId ? { boardId } : {};
 
-        return prisma.ticket.findMany({
+        return this.ctx.prisma.ticket.findMany({
             where: boardWhere,
             orderBy: [
                 { priority: "desc" }, // critical, high, medium, low
@@ -461,7 +464,7 @@ export class KanbanTodoListService {
      * Get subtickets sorted by priority then by createdAt
      */
     async getSubticketsByPriority(ticketId: number): Promise<SubTicketWithTestCases[]> {
-        return prisma.subTicket.findMany({
+        return this.ctx.prisma.subTicket.findMany({
             where: { ticketId },
             include: {
                 testCases: true,
@@ -479,7 +482,7 @@ export class KanbanTodoListService {
     async getTicketsByStatus(boardId?: string): Promise<Ticket[]> {
         const boardWhere = boardId ? { boardId } : {};
 
-        return prisma.ticket.findMany({
+        return this.ctx.prisma.ticket.findMany({
             where: boardWhere,
             orderBy: [
                 { status: "asc" },
@@ -495,7 +498,7 @@ export class KanbanTodoListService {
      * Get subtickets sorted by status then by createdAt
      */
     async getSubticketsByStatus(ticketId: number): Promise<SubTicketWithTestCases[]> {
-        return prisma.subTicket.findMany({
+        return this.ctx.prisma.subTicket.findMany({
             where: { ticketId },
             include: {
                 testCases: true,
@@ -513,7 +516,7 @@ export class KanbanTodoListService {
     async getTicketsWithActiveTestCases(boardId?: string): Promise<Ticket[]> {
         const boardWhere = boardId ? { boardId } : {};
 
-        return prisma.ticket.findMany({
+        return this.ctx.prisma.ticket.findMany({
             where: {
                 ...boardWhere,
                 subtickets: {
@@ -544,10 +547,10 @@ export class KanbanTodoListService {
         pendingTestCases: number;
     }> {
         const [ticket, subtickets] = await Promise.all([
-            prisma.ticket.findUnique({
+            this.ctx.prisma.ticket.findUnique({
                 where: { id: ticketId },
             }),
-            prisma.subTicket.findMany({
+            this.ctx.prisma.subTicket.findMany({
                 where: { ticketId },
                 include: {
                     testCases: true,
@@ -578,3 +581,8 @@ export class KanbanTodoListService {
         };
     }
 }
+
+// Default export for production use
+export const createKanbanTodoListService = () => {
+    return new KanbanTodoListService({ prisma });
+};
